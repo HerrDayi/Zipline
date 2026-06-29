@@ -114,7 +114,7 @@
         .app-layout {
             display: flex;
             flex: 1;
-            height: calc(100vh - 70px);
+            min-height: 0; /* Critical for inner scrolling on iPad/Safari */
             position: relative;
         }
 
@@ -127,6 +127,7 @@
             display: flex;
             flex-direction: column;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch; /* Momentum scrolling on iPad */
             z-index: 5;
         }
 
@@ -808,6 +809,36 @@
         .p-step-line.completed {
             background: var(--success);
         }
+
+        /* iPad Landscape / Small Screen height optimizations */
+        @media (max-height: 850px) {
+            header {
+                padding: 10px 20px;
+            }
+            .progress-steps-tracker {
+                padding: 6px 20px;
+                gap: 15px;
+            }
+            .panel-content {
+                padding: 15px;
+                gap: 15px;
+            }
+            .proof-step {
+                padding: 12px 15px;
+                margin-bottom: 10px;
+            }
+            .math-statement-card {
+                padding: 8px 12px;
+                font-size: 0.82rem;
+            }
+            .step-header {
+                margin-bottom: 6px;
+            }
+            .step-body {
+                margin-bottom: 8px;
+                font-size: 0.84rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1247,8 +1278,35 @@
                 distEl.style.color = 'var(--success)';
             }
 
-            // Update distance connector line
-            updateDistanceLine(pG, pH, dist);
+            // Sync visibility based on active level
+            if (activeLevel === 0) {
+                zipRider1.visible = false;
+                zipRider2.visible = false;
+                if (connectingLine) {
+                    meshGroup.remove(connectingLine);
+                    connectingLine = null;
+                }
+                if (labelSprite) {
+                    meshGroup.remove(labelSprite);
+                    labelSprite = null;
+                }
+                
+                // Hide live comparison stats card
+                document.querySelector('.live-comparison-card').style.display = 'none';
+                // Hide controls card
+                document.querySelector('.viewport-controls-card').style.display = 'none';
+            } else {
+                zipRider1.visible = true;
+                zipRider2.visible = true;
+                
+                // Show live comparison stats card
+                document.querySelector('.live-comparison-card').style.display = 'block';
+                // Show controls card
+                document.querySelector('.viewport-controls-card').style.display = 'flex';
+                
+                // Update distance connector line
+                updateDistanceLine(pG, pH, dist);
+            }
 
             // Sync controls slider
             document.getElementById('time-slider').value = tVal;
@@ -1461,6 +1519,9 @@
                 if (stepsContainer) renderMathInElement(stepsContainer, renderOptions);
                 if (liveCard) renderMathInElement(liveCard, renderOptions);
             }
+
+            // Sync 3D scene elements visibility with active level
+            update3DState();
         }
 
         // Toggle Hint
@@ -1470,6 +1531,10 @@
             if (box.style.display === 'none') {
                 box.style.display = 'block';
                 btn.innerHTML = '💡 Tipp ausblenden';
+                // Scroll hint box smoothly into view
+                setTimeout(() => {
+                    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 50);
             } else {
                 box.style.display = 'none';
                 btn.innerHTML = '💡 Tipp anzeigen';
