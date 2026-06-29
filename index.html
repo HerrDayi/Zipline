@@ -1,0 +1,1734 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kletterpark 3D | Zipline-Sicherheitsanalyse</title>
+    
+    <!-- KaTeX CSS for textbook math -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    
+    <style>
+        :root {
+            --bg-light: #f8fafc;
+            --bg-card: #ffffff;
+            --border-color: #cbd5e1;
+            --accent: #4f46e5;
+            --accent-hover: #3730a3;
+            --accent-light: rgba(79, 70, 229, 0.05);
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --success: #10b981;
+            --success-light: rgba(16, 185, 129, 0.05);
+            --warning: #f59e0b;
+            --warning-light: rgba(245, 158, 11, 0.05);
+            --danger: #ef4444;
+            --danger-light: rgba(239, 68, 68, 0.05);
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-light);
+            color: var(--text-primary);
+            font-family: var(--font-family);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: #ffffff;
+            border-bottom: 1px solid var(--border-color);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-title h1 {
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: var(--accent);
+        }
+
+        .header-title p {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            color: var(--text-primary);
+            background: #f1f5f9;
+            border-color: #94a3b8;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #ffffff;
+            border-color: var(--accent);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            color: #ffffff;
+            border-color: var(--accent-hover);
+        }
+
+        /* App Layout */
+        .app-layout {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 70px);
+            position: relative;
+        }
+
+        /* Sidebar - Guide (takes up 55% of width) */
+        .sidebar {
+            width: 55%;
+            min-width: 500px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            z-index: 5;
+        }
+
+        .panel-content {
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .panel-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 8px;
+            margin-bottom: 5px;
+        }
+
+        .math-statement-card {
+            background: var(--accent-light);
+            border: 1px dashed var(--accent);
+            border-radius: 8px;
+            padding: 12px 15px;
+            font-size: 0.88rem;
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        /* Widescreen Viewport (45% width) */
+        .viewport-container {
+            width: 45%;
+            position: relative;
+            background: #f1f5f9;
+        }
+
+        #canvas-3d {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Overlay calculations card */
+        .live-comparison-card {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px 15px;
+            width: 280px;
+            backdrop-filter: blur(8px);
+            box-shadow: var(--card-shadow);
+            z-index: 6;
+            font-size: 0.85rem;
+        }
+
+        .live-card-title {
+            font-weight: bold;
+            color: var(--accent);
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 4px;
+        }
+
+        .live-card-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            row-gap: 6px;
+            column-gap: 10px;
+        }
+
+        /* Timeline and play controls */
+        .viewport-controls-card {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 15px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            backdrop-filter: blur(8px);
+            z-index: 6;
+            box-shadow: var(--card-shadow);
+        }
+
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .slider-row label {
+            min-width: 110px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: bold;
+        }
+
+        .slider-field {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: #e2e8f0;
+            outline: none;
+            border: 1px solid var(--border-color);
+        }
+
+        .slider-field::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+            transition: transform 0.1s ease;
+        }
+
+        .slider-field::-webkit-slider-thumb:hover {
+            transform: scale(1.25);
+        }
+
+        .slider-value {
+            min-width: 50px;
+            text-align: right;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        .play-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-icon {
+            background: var(--accent);
+            color: white;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: background 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .btn-icon:hover {
+            background: var(--accent-hover);
+        }
+
+        .anim-status-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        /* Proof Steps styling */
+        .proof-step {
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 15px;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .proof-step.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .proof-step.solved {
+            background: var(--success-light);
+            border-color: rgba(16, 185, 129, 0.4);
+        }
+
+        .step-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--accent);
+        }
+
+        .proof-step.solved .step-header {
+            color: var(--success);
+        }
+
+        .step-body {
+            font-size: 0.88rem;
+            line-height: 1.6;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+
+        /* Interactive formats */
+        .options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        .option-item {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .option-item:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+        }
+
+        .option-item.selected {
+            border-color: var(--accent);
+            background: var(--accent-light);
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        .option-item.correct {
+            border-color: var(--success);
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .option-item.wrong {
+            border-color: var(--danger);
+            background: var(--danger-light);
+            color: var(--danger);
+        }
+
+        .option-checkbox {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: bold;
+            color: white;
+            background: white;
+        }
+
+        .option-item.selected .option-checkbox {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .option-item.correct .option-checkbox {
+            background: var(--success);
+            border-color: var(--success);
+        }
+
+        .option-item.wrong .option-checkbox {
+            background: var(--danger);
+            border-color: var(--danger);
+        }
+
+        /* Drag-and-drop matching UI for Level 1 */
+        .matching-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin: 15px 0;
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .matching-slots {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .matching-slot-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .math-label {
+            min-width: 60px;
+            font-weight: bold;
+            font-size: 0.95rem;
+        }
+
+        .matching-slot {
+            flex: 1;
+            min-height: 44px;
+            border: 2px dashed var(--border-color);
+            background: #f8fafc;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            padding: 4px 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .matching-slot.active-slot {
+            border-color: var(--accent);
+            background: var(--accent-light);
+        }
+
+        .matching-slot.slot-filled {
+            border-style: solid;
+            background: #ffffff;
+            border-color: var(--accent);
+        }
+
+        .matching-slot.correct-slot {
+            border-style: solid;
+            border-color: var(--success) !important;
+            background: var(--success-light) !important;
+            color: var(--success);
+            pointer-events: none;
+        }
+
+        .matching-slot.wrong-slot {
+            border-style: solid;
+            border-color: var(--danger) !important;
+            background: var(--danger-light) !important;
+        }
+
+        .slot-placeholder {
+            color: #94a3b8;
+            font-size: 0.8rem;
+            font-style: italic;
+        }
+
+        .matching-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 12px;
+        }
+
+        .option-card {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 14px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: var(--text-primary);
+            cursor: grab;
+            user-select: none;
+            transition: all 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .option-card:hover {
+            border-color: #94a3b8;
+            background: #f1f5f9;
+        }
+
+        .option-card.selected-card {
+            border-color: var(--accent);
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 4px 6px rgba(79,70,229,0.25);
+        }
+
+        .option-card.card-used {
+            opacity: 0.35;
+            cursor: default;
+            pointer-events: none;
+        }
+
+        .slot-filled-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        .slot-filled-content .remove-btn {
+            font-size: 1.1rem;
+            color: #94a3b8;
+            cursor: pointer;
+            transition: color 0.1s;
+            padding: 0 4px;
+        }
+
+        .slot-filled-content .remove-btn:hover {
+            color: var(--danger);
+        }
+
+        /* Cloze selects */
+        .cloze-select {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            color: var(--accent);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin: 0 4px;
+            font-weight: 700;
+        }
+
+        .cloze-select:focus {
+            border-color: var(--accent);
+        }
+
+        .cloze-select.correct {
+            border-color: var(--success) !important;
+            color: var(--success) !important;
+            background: var(--success-light);
+            pointer-events: none;
+        }
+
+        .cloze-select.wrong {
+            border-color: var(--danger) !important;
+            color: var(--danger) !important;
+            background: var(--danger-light);
+        }
+
+        /* Numeric Inputs & Radios for Level 3 */
+        .num-input {
+            width: 80px;
+            padding: 6px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: var(--accent);
+            text-align: center;
+            outline: none;
+            margin: 0 6px;
+        }
+
+        .num-input:focus {
+            border-color: var(--accent);
+        }
+
+        .num-input.correct {
+            border-color: var(--success);
+            background: var(--success-light);
+            color: var(--success);
+            pointer-events: none;
+        }
+
+        .num-input.wrong {
+            border-color: var(--danger);
+            background: var(--danger-light);
+            color: var(--danger);
+        }
+
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 15px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .radio-label:hover {
+            background: #f1f5f9;
+        }
+
+        .radio-label.correct {
+            border-color: var(--success);
+            background: var(--success-light);
+            color: var(--success);
+            font-weight: bold;
+        }
+
+        .radio-label.wrong {
+            border-color: var(--danger);
+            background: var(--danger-light);
+            color: var(--danger);
+        }
+
+        .radio-label input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent);
+        }
+
+        /* Common validation action buttons */
+        .btn-check {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 10px;
+        }
+
+        .btn-check:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-next-level {
+            background: var(--success);
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-next-level:hover {
+            background: #059669;
+        }
+
+        /* Success banner */
+        .success-banner {
+            background: var(--success-light);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: var(--text-primary);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* Hint section under active step */
+        .hint-container {
+            margin-top: 12px;
+            border-top: 1px dashed var(--border-color);
+            padding-top: 12px;
+        }
+
+        .btn-hint-toggle {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 0.82rem;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .btn-hint-toggle:hover {
+            text-decoration: underline;
+        }
+
+        .step-hint-box {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-top: 8px;
+            font-size: 0.82rem;
+            color: #b45309;
+            line-height: 1.4;
+        }
+
+        /* Progress Steps bar in header */
+        .progress-steps-tracker {
+            display: flex;
+            background: #ffffff;
+            border-bottom: 1px solid var(--border-color);
+            padding: 10px 30px;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .p-step-dot {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .p-step-dot.active {
+            color: var(--accent);
+        }
+
+        .p-step-dot.active .dot-num {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .p-step-dot.completed {
+            color: var(--success);
+        }
+
+        .p-step-dot.completed .dot-num {
+            background: var(--success);
+            color: white;
+            border-color: var(--success);
+        }
+
+        .dot-num {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.72rem;
+            font-weight: bold;
+            background: white;
+        }
+
+        .p-step-line {
+            flex: 1;
+            height: 2px;
+            background: var(--border-color);
+            max-width: 60px;
+        }
+
+        .p-step-line.completed {
+            background: var(--success);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header bar -->
+    <header>
+        <div class="header-title">
+            <span style="font-size: 1.8rem; margin-right: 5px;">🚠</span>
+            <div>
+                <h1>Kletterpark 3D | Zipline-Sicherheitsanalyse</h1>
+                <p>Interaktive Lernumgebung zur Vektorgeometrie & Extremwertrechnung</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Progress Tracker -->
+    <div class="progress-steps-tracker">
+        <div class="p-step-dot active" id="p-dot-0">
+            <div class="dot-num">0</div>
+            <span>Einstiegs-Check</span>
+        </div>
+        <div class="p-step-line" id="p-line-0"></div>
+        <div class="p-step-dot" id="p-dot-1">
+            <div class="dot-num">1</div>
+            <span>Verbindungsvektor</span>
+        </div>
+        <div class="p-step-line" id="p-line-1"></div>
+        <div class="p-step-dot" id="p-dot-2">
+            <div class="dot-num">2</div>
+            <span>Radikanden-Betrachtung</span>
+        </div>
+        <div class="p-step-line" id="p-line-2"></div>
+        <div class="p-step-dot" id="p-dot-3">
+            <div class="dot-num">3</div>
+            <span>Berechnung & Freigabe</span>
+        </div>
+    </div>
+
+    <!-- App Container -->
+    <div class="app-layout">
+
+        <!-- Left Sidebar: Guide and inputs -->
+        <aside class="sidebar">
+            <div class="panel-content">
+                <div class="panel-title">Sicherheitsüberprüfung: Zipline-Abstand</div>
+                
+                <div class="math-statement-card">
+                    <strong>Szenario:</strong> Zwei Ziplines verlaufen im Kletterpark entlang zweier Seillinien $g$ und $h$. 
+                    Zwei Personen rutschen zeitgleich los. Wir untersuchen, ob sie sich während der Fahrt gefährlich nahe kommen.
+                    <br><br>
+                    <strong>Gegebene Seillinien:</strong>
+                    $$g: \vec{x} = \begin{pmatrix} 0 \\ 0 \\ 10 \end{pmatrix} + t \begin{pmatrix} 2 \\ 1 \\ -1 \end{pmatrix} \quad\text{und}\quad h: \vec{x} = \begin{pmatrix} 0 \\ 10 \\ 8 \end{pmatrix} + t \begin{pmatrix} 1 \\ -1 \\ 0 \end{pmatrix}$$
+                    wobei $t \ge 0$ die Zeit in Sekunden nach dem Start beschreibt.
+                </div>
+
+                <!-- Worksheet steps container -->
+                <div id="steps-container">
+                    <!-- Steps will be rendered dynamically here -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- Right Viewport: 3D Visualization -->
+        <div class="viewport-container">
+            <!-- 3D Canvas -->
+            <div id="canvas-3d"></div>
+
+            <!-- Live overlay stats card -->
+            <div class="live-comparison-card">
+                <div class="live-card-title">Abstands-Messung (Echtzeit)</div>
+                <div class="live-card-grid">
+                    <div>Zeit $t$:</div><div style="font-weight: bold; color: var(--accent);" id="live-time">0.00 s</div>
+                    <div>Pos. $g(t)$:</div><div id="live-pos-g">[0.00; 0.00; 10.00]</div>
+                    <div>Pos. $h(t)$:</div><div id="live-pos-h">[0.00; 10.00; 8.00]</div>
+                    <div style="grid-column: span 2; border-bottom: 1px solid var(--border-color); margin: 2px 0;"></div>
+                    <div>Vektor $\vec{d}(t)$:</div><div style="font-family: monospace;" id="live-vec-d">[0.00; -10.00; 2.00]</div>
+                    <div style="font-weight: bold;">Abstand $d(t)$:</div><div style="font-weight: bold; font-size: 0.95rem;" id="live-dist">10.20 m</div>
+                </div>
+            </div>
+
+            <!-- Play & Slider Controls -->
+            <div class="viewport-controls-card">
+                <div class="slider-row">
+                    <label for="time-slider">Zeitwert ($t$):</label>
+                    <input type="range" id="time-slider" class="slider-field" min="0" max="10" step="0.05" value="0">
+                    <span class="slider-value" id="time-val">0.00s</span>
+                </div>
+                <div class="play-controls">
+                    <button class="btn-icon" id="play-btn">▶</button>
+                    <span class="anim-status-label" id="play-label">Simulation starten (Rutschvorgang abspielen)</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- CDN Libraries -->
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- KaTeX JS -->
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+
+    <!-- App Script -->
+    <script>
+        // Core states
+        let scene, camera, renderer, controls;
+        let meshGroup;
+        let activeLevel = 0;
+        
+        // Time parameter (t)
+        let tVal = 0.0;
+        let isPlaying = false;
+        let animationFrameId = null;
+
+        // Level definitions
+        const LEVELS = [
+            {
+                id: 0,
+                header: "LEVEL 0: Der Einstiegs-Check (Lagebeziehung)",
+                body: `Die Betreiber behaupten, das gleichzeitige Rutschen sei sicher, da sich die beiden Seile niemals berühren. Stimmt das?<br>
+                <strong>Aufgabe:</strong> Welche Lagebeziehung haben die beiden Ziplines zueinander? Überprüfe deine Rechnung vom Arbeitsblatt (Arbeitsauftrag 1).`,
+                type: 'mc',
+                options: [
+                    { id: 'opt-0-0', text: "Sie schneiden sich in einem Punkt.", isCorrect: false },
+                    { id: 'opt-0-1', text: "Sie sind echt parallel zueinander.", isCorrect: false },
+                    { id: 'opt-0-2', text: "Sie sind identisch.", isCorrect: false },
+                    { id: 'opt-0-3', text: "Sie sind windschief zueinander (kein Schnittpunkt).", isCorrect: true }
+                ],
+                hint: "Zwei Geraden im Raum können sich schneiden, parallel sein, identisch sein oder windschief zueinander verlaufen. Setze die Richtungsvektoren in Beziehung (sind sie linear abhängig?) und mache danach eine Schnittpunktprobe, um den Schnittpunkt auszuschließen.",
+                successText: "Exakt! Rechnerisch gibt es keinen Schnittpunkt, die Seile berühren sich also nie. Aber reicht das aus, um die Sicherheit der Personen zu garantieren? Was passiert, wenn sie sich trotzdem gefährlich nahe kommen? Starte Level 1, um den wahren Sicherheitsabstand zu ermitteln."
+            },
+            {
+                id: 1,
+                header: "LEVEL 1: Der synchrone Verbindungsvektor",
+                body: `Um den Abstand zu jedem Zeitpunkt $t$ zu bestimmen, vergleichen wir die Positionen beider Personen zum exakt selben Zeitpunkt.<br>
+                <strong>Aufgabe:</strong> Stelle den zeitabhängigen Verbindungsvektor $\\vec{d}(t) = \\vec{g}(t) - \\vec{h}(t)$ auf, indem du die richtigen Terme für die $x$-, $y$- und $z$-Koordinate zuordnest.`,
+                type: 'matching',
+                slots: [
+                    { axis: 'x', label: 'd_x(t) =', expected: 't' },
+                    { axis: 'y', label: 'd_y(t) =', expected: '2t - 10' },
+                    { axis: 'z', label: 'd_z(t) =', expected: '2 - t' }
+                ],
+                options: ['t', '2t - 10', '2 - t', 't - 10', '2t + 10'],
+                hint: "Subtrahiere die Koordinaten zeilenweise: $d_x(t) = g_x(t) - h_x(t)$, $d_y(t) = g_y(t) - h_y(t)$, $d_z(t) = g_z(t) - h_z(t)$. Achte besonders auf Minusklammern, z.B. $t - (10 - t) = 2t - 10$.",
+                successText: "Super! Übertrage den Vektor $\\vec{d}(t)$ jetzt in Kasten 1 auf deinem Arbeitsblatt und gehe weiter zu Level 2."
+            },
+            {
+                id: 2,
+                header: "LEVEL 2: Der mathematische Trick (Radikanden-Betrachtung)",
+                body: `Die Länge des Vektors wird über die Abstandsfunktion $d(t) = \\sqrt{t^2 + (2t-10)^2 + (2-t)^2}$ berechnet. Das direkte Ableiten einer Wurzelfunktion ist jedoch extrem kompliziert.<br>
+                <strong>Aufgabe:</strong> Fülle den folgenden Merksatz logisch aus:`,
+                type: 'cloze',
+                clozeText: `Eine Wurzelfunktion der Form $d(t) = \\sqrt{f(t)}$ nimmt ihren kleinsten Wert genau an derselben Stelle $t$ an, an der auch der Term unter der Wurzel (der sogenannte <select class="cloze-select" id="cloze-radikand"><option value="">--?</option><option value="Exponent">Exponent</option><option value="Radikand">Radikand</option><option value="Nenner">Nenner</option></select>) seinen <select class="cloze-select" id="cloze-extrem"><option value="">--?</option><option value="minimalen">minimalen</option><option value="maximalen">maximalen</option><option value="durchschnittlichen">durchschnittlichen</option></select> Wert annimmt. Für die Suche nach dem optimalen Zeitpunkt dürfen wir die <select class="cloze-select" id="cloze-wurzel"><option value="">--?</option><option value="Ableitung">Ableitung</option><option value="Wurzel">Wurzel</option><option value="Steigung">Steigung</option></select> beim Ableiten also einfach ignorieren und untersuchen nur die Parabel $f(t)$.`,
+                answers: {
+                    'cloze-radikand': 'Radikand',
+                    'cloze-extrem': 'minimalen',
+                    'cloze-wurzel': 'Wurzel'
+                },
+                hint: "Überlege dir: Wenn eine Zahl größer wird, wird auch ihre Wurzel größer. Wenn der Term unter der Wurzel minimal wird, ist die Wurzel selbst auch minimal. Wie heißt der mathematische Fachausdruck für den Term unter der Wurzel?",
+                successText: "Perfekt verstanden! Ergänze den Merkkasten auf deinem Arbeitsblatt und starte Level 3 für das Finale."
+            },
+            {
+                id: 3,
+                header: "LEVEL 3: Die finale Berechnung & TÜV-Freigabe",
+                body: `Die vereinfachte Zielfunktion ohne Wurzel lautet $f(t) = 6t^2 - 44t + 104$.<br><br>
+                <strong>Teil A:</strong> Berechne den Zeitpunkt $t$ (über die Nullstelle der Ableitung $f'(t) = 0$). Runde auf zwei Nachkommastellen.<br>
+                Zeitpunkt $t = $ <input type="text" id="input-l3-t" class="num-input" placeholder="z.B. 3.50"> Sekunden.<br><br>
+                
+                <strong>Teil B:</strong> Setze $t = 3,67$ in die originale Abstandsfunktion $d(t)$ (mit Wurzel!) ein. Wie groß ist der minimale Abstand der Ziplines wirklich? Runde auf zwei Nachkommastellen.<br>
+                Abstand $d = $ <input type="text" id="input-l3-d" class="num-input" placeholder="z.B. 4.50"> Meter.<br><br>
+                
+                <strong>Teil C:</strong> Der TÜV fordert mindestens $3$ Meter Sicherheitsabstand zu jedem Zeitpunkt. Wird die Anlage freigegeben?`,
+                type: 'final',
+                hint: "Teil A: Leite $f(t)$ ab zu $f'(t) = 12t - 44$. Setze dies gleich $0$.<br>Teil B: Setze deinen berechneten Wert für $t$ in die Gleichung $d(t) = \\sqrt{6t^2 - 44t + 104}$ ein. Achte auf Punkt-vor-Strichrechnung und ziehe am Ende die Wurzel.",
+                successText: "Glückwunsch! Du hast die Ziplines erfolgreich überprüft und den Betreiber widerlegt. Dein Erfolgs-Code für das Arbeitsblatt lautet: <strong style='font-size: 1.1rem; color: var(--accent);'>ZIP-2026</strong>. Trage das Ergebnis und den Code auf deinem Arbeitsblatt ein!"
+            }
+        ];
+
+        // 3D Variables
+        let zipRider1, zipRider2, connectingLine, labelSprite;
+        let lineG, lineH;
+        let treeA, treeB, treeC, treeD;
+
+        // Initialize 3D scene
+        function init3D() {
+            const container = document.getElementById('canvas-3d');
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf1f5f9); // Light Gray
+
+            camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 100);
+            camera.up.set(0, 0, 1); // Z is vertical
+            camera.position.set(22, -18, 12);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(w, h);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.01; // Keep camera above ground
+            controls.target.set(10, 5, 5);
+
+            // Lighting
+            const ambient = new THREE.AmbientLight(0xffffff, 0.65);
+            scene.add(ambient);
+
+            const sun = new THREE.DirectionalLight(0xffffff, 0.7);
+            sun.position.set(15, -15, 20);
+            sun.castShadow = true;
+            scene.add(sun);
+
+            // Ground grid helper
+            const gridHelper = new THREE.GridHelper(30, 30, 0x94a3b8, 0xe2e8f0);
+            gridHelper.rotation.x = Math.PI / 2;
+            scene.add(gridHelper);
+
+            meshGroup = new THREE.Group();
+            scene.add(meshGroup);
+
+            // Draw climbing park environment (Trees and Platforms)
+            buildEnvironment();
+
+            // Resize listener
+            window.addEventListener('resize', () => {
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+                camera.aspect = w / h;
+                camera.updateProjectionMatrix();
+                renderer.setSize(w, h);
+            });
+
+            // Loop
+            function animate() {
+                requestAnimationFrame(animate);
+                controls.update();
+                renderer.render(scene, camera);
+            }
+            animate();
+        }
+
+        // Environment Builder (Trees, Platforms, and ropes)
+        function buildEnvironment() {
+            // Tree Materials
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.8 }); // Brown
+            const foliageMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.6 }); // Green
+            const platformMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.7 }); // Wooden platform
+            const ropeMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.9, roughness: 0.2 }); // Slate steel
+
+            // Platforms definitions
+            // g(0) = (0,0,10), g(10) = (20,10,0)
+            // h(0) = (0,10,8), h(10) = (10,0,8)
+            const treePositions = [
+                { x: 0, y: 0, height: 10, name: 'A' },
+                { x: 20, y: 10, height: 1.5, name: 'B' }, // low tower
+                { x: 0, y: 10, height: 8, name: 'C' },
+                { x: 10, y: 0, height: 8, name: 'D' }
+            ];
+
+            treePositions.forEach(pos => {
+                // Trunk
+                const trunkGeo = new THREE.CylinderGeometry(0.25, 0.35, pos.height, 12);
+                trunkGeo.translate(0, pos.height / 2, 0);
+                trunkGeo.rotateX(Math.PI / 2);
+                const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+                trunk.position.set(pos.x, pos.y, 0);
+                meshGroup.add(trunk);
+
+                // Platform
+                const platGeo = new THREE.CylinderGeometry(0.7, 0.7, 0.1, 16);
+                platGeo.translate(0, 0.05, 0);
+                platGeo.rotateX(Math.PI / 2);
+                const plat = new THREE.Mesh(platGeo, platformMat);
+                plat.position.set(pos.x, pos.y, pos.height - 0.05);
+                meshGroup.add(plat);
+
+                // Foliage (leaves) on top
+                const leavesGeo = new THREE.SphereGeometry(1.2, 16, 12);
+                const leaves = new THREE.Mesh(leavesGeo, foliageMat);
+                leaves.position.set(pos.x, pos.y, pos.height + 1.0);
+                meshGroup.add(leaves);
+            });
+
+            // Draw Steel Ropes
+            // Rope g (0,0,10) to (20,10,0)
+            drawRope(new THREE.Vector3(0, 0, 10), new THREE.Vector3(20, 10, 0), ropeMat);
+            // Rope h (0,10,8) to (10,0,8)
+            drawRope(new THREE.Vector3(0, 10, 8), new THREE.Vector3(10, 0, 8), ropeMat);
+
+            // Add Riders
+            const riderGeo = new THREE.SphereGeometry(0.25, 16, 16);
+            const rider1Mat = new THREE.MeshStandardMaterial({ color: 0x4f46e5, metalness: 0.3, roughness: 0.4 }); // Indigo
+            const rider2Mat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.3, roughness: 0.4 }); // Amber
+
+            zipRider1 = new THREE.Mesh(riderGeo, rider1Mat);
+            meshGroup.add(zipRider1);
+
+            zipRider2 = new THREE.Mesh(riderGeo, rider2Mat);
+            meshGroup.add(zipRider2);
+
+            // Connecting distance line (initially invisible or red/green cylinder)
+            connectingLine = null; // built dynamically in update
+            labelSprite = createTextSprite("10.0m", "#ef4444");
+            meshGroup.add(labelSprite);
+        }
+
+        // Draw a cylinder representing the steel cable
+        function drawRope(pStart, pEnd, material) {
+            const dist = pStart.distanceTo(pEnd);
+            const geo = new THREE.CylinderGeometry(0.04, 0.04, dist, 8);
+            geo.translate(0, dist / 2, 0);
+            geo.rotateX(Math.PI / 2);
+            const mesh = new THREE.Mesh(geo, material);
+            mesh.position.copy(pStart);
+            mesh.lookAt(pEnd);
+            meshGroup.add(mesh);
+        }
+
+        // Dynamic connecting line between riders
+        function updateDistanceLine(p1, p2, dist) {
+            if (connectingLine) {
+                meshGroup.remove(connectingLine);
+            }
+
+            const vec = new THREE.Vector3().subVectors(p2, p1);
+            const len = vec.length();
+            if (len < 0.05) return;
+
+            // Choose color based on distance
+            // min distance is ~4.83m.
+            // Safety limit is 3.0m (Red). Warning limit is 5.0m (Yellow). Safe is >= 5.0m (Green).
+            let color = 0x10b981; // Green
+            let labelColor = "#10b981";
+            if (len < 3.0) {
+                color = 0xef4444; // Red
+                labelColor = "#ef4444";
+            } else if (len < 5.0) {
+                color = 0xf59e0b; // Yellow/Amber
+                labelColor = "#d97706";
+            }
+
+            const geo = new THREE.CylinderGeometry(0.04, 0.04, len, 6);
+            geo.translate(0, len / 2, 0);
+            geo.rotateX(Math.PI / 2);
+
+            const mat = new THREE.MeshStandardMaterial({
+                color: color,
+                emissive: color,
+                emissiveIntensity: 0.35,
+                roughness: 0.5
+            });
+
+            connectingLine = new THREE.Mesh(geo, mat);
+            connectingLine.position.copy(p1);
+            connectingLine.lookAt(p2);
+            meshGroup.add(connectingLine);
+
+            // Update floating label sprite
+            meshGroup.remove(labelSprite);
+            labelSprite = createTextSprite(`${len.toFixed(2)}m`, labelColor);
+            const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+            labelSprite.position.copy(mid).add(new THREE.Vector3(0, 0, 0.5));
+            meshGroup.add(labelSprite);
+        }
+
+        // Creating floating label sprite
+        function createTextSprite(text, color) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            
+            // Box background
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.fillRect(0, 0, 128, 64);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.strokeRect(2, 2, 124, 60);
+
+            // Text
+            ctx.font = 'Bold 32px sans-serif';
+            ctx.fillStyle = color;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 64, 32);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const mat = new THREE.SpriteMaterial({ map: texture, transparent: true });
+            const sprite = new THREE.Sprite(mat);
+            sprite.scale.set(0.65 * 2, 0.65, 1);
+            return sprite;
+        }
+
+        // Update rider positions based on time t
+        function update3DState() {
+            // g(t) = (2t, t, 10 - t)
+            const gX = 2 * tVal;
+            const gY = tVal;
+            const gZ = 10 - tVal;
+            const pG = new THREE.Vector3(gX, gY, gZ);
+            zipRider1.position.copy(pG);
+
+            // h(t) = (t, 10 - t, 8)
+            const hX = tVal;
+            const hY = 10 - tVal;
+            const hZ = 8;
+            const pH = new THREE.Vector3(hX, hY, hZ);
+            zipRider2.position.copy(pH);
+
+            // Distance vector d(t) = (t, 2t - 10, 2 - t)
+            const dX = tVal;
+            const dY = 2 * tVal - 10;
+            const dZ = 2 - tVal;
+            const dist = Math.sqrt(dX*dX + dY*dY + dZ*dZ);
+
+            // Update live measuring overlay
+            document.getElementById('live-time').innerText = `${tVal.toFixed(2)} s`;
+            document.getElementById('live-pos-g').innerText = `[${gX.toFixed(2)}; ${gY.toFixed(2)}; ${gZ.toFixed(2)}]`;
+            document.getElementById('live-pos-h').innerText = `[${hX.toFixed(2)}; ${hY.toFixed(2)}; ${hZ.toFixed(2)}]`;
+            document.getElementById('live-vec-d').innerText = `[${dX.toFixed(2)}; ${dY.toFixed(2)}; ${dZ.toFixed(2)}]`;
+            
+            const distEl = document.getElementById('live-dist');
+            distEl.innerText = `${dist.toFixed(2)} m`;
+            if (dist < 3.0) {
+                distEl.style.color = 'var(--danger)';
+            } else if (dist < 5.0) {
+                distEl.style.color = 'var(--warning)';
+            } else {
+                distEl.style.color = 'var(--success)';
+            }
+
+            // Update distance connector line
+            updateDistanceLine(pG, pH, dist);
+
+            // Sync controls slider
+            document.getElementById('time-slider').value = tVal;
+            document.getElementById('time-val').innerText = `${tVal.toFixed(2)}s`;
+        }
+
+        // Animation Loop control
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            const btn = document.getElementById('play-btn');
+            const label = document.getElementById('play-label');
+
+            if (isPlaying) {
+                btn.innerHTML = '⏸';
+                label.innerText = 'Rutschvorgang läuft...';
+                animateRiders();
+            } else {
+                btn.innerHTML = '▶';
+                label.innerText = 'Simulation pausiert.';
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                }
+            }
+        }
+
+        function animateRiders() {
+            if (!isPlaying) return;
+            
+            tVal += 0.035;
+            if (tVal > 10.0) {
+                tVal = 0.0; // Loop animation
+            }
+            update3DState();
+            
+            animationFrameId = requestAnimationFrame(animateRiders);
+        }
+
+        // RENDER WORKSHEET STEPS
+        let selectedMatchingOption = null;
+        let matchingPlacements = { x: null, y: null, z: null };
+
+        function renderWorksheet() {
+            const container = document.getElementById('steps-container');
+            container.innerHTML = '';
+
+            for (let i = 0; i <= activeLevel; i++) {
+                const step = LEVELS[i];
+                const stepDiv = document.createElement('div');
+                stepDiv.id = `step-card-${i}`;
+                stepDiv.className = `proof-step visible ${i < activeLevel ? 'solved' : ''}`;
+
+                let formatHTML = '';
+                if (step.type === 'mc') {
+                    formatHTML = `<div class="options-list">`;
+                    step.options.forEach(opt => {
+                        let statusClass = '';
+                        if (i < activeLevel && opt.isCorrect) statusClass = 'correct';
+                        formatHTML += `
+                            <div class="option-item ${statusClass}" id="${opt.id}" onclick="selectMC('${opt.id}', ${i})">
+                                <div class="option-checkbox">✓</div>
+                                <span>${opt.text}</span>
+                            </div>
+                        `;
+                    });
+                    formatHTML += `</div>`;
+                    if (i === activeLevel) {
+                        formatHTML += `<button class="btn-check" id="check-btn-${i}" onclick="checkMC(${i})">Antwort prüfen</button>`;
+                    }
+                } else if (step.type === 'matching') {
+                    formatHTML += `<div class="matching-container">`;
+                    
+                    // slots
+                    formatHTML += `<div class="matching-slots">`;
+                    step.slots.forEach(slot => {
+                        const isCorrect = i < activeLevel;
+                        const content = isCorrect ? slot.expected : (matchingPlacements[slot.axis] ? matchingPlacements[slot.axis] : null);
+                        const filledClass = content ? 'slot-filled' : '';
+                        const correctClass = isCorrect ? 'correct-slot' : '';
+                        
+                        formatHTML += `
+                            <div class="matching-slot-row">
+                                <span class="math-label">$${slot.label}$</span>
+                                <div class="matching-slot ${filledClass} ${correctClass}" id="slot-${slot.axis}" onclick="handleSlotClick('${slot.axis}')" ondragover="allowDrop(event)" ondrop="handleDrop(event, '${slot.axis}')">
+                                    ${content ? `
+                                        <div class="slot-filled-content">
+                                            <span>$${content}$</span>
+                                            ${!isCorrect ? `<span class="remove-btn" onclick="removePlacedCard(event, '${slot.axis}')">×</span>` : ''}
+                                        </div>
+                                    ` : `<span class="slot-placeholder">Hier klicken oder ablegen</span>`}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    formatHTML += `</div>`;
+
+                    // draggable cards (only if current active level)
+                    if (i === activeLevel) {
+                        formatHTML += `<div class="matching-options" id="matching-options">`;
+                        step.options.forEach((opt, idx) => {
+                            const isUsed = Object.values(matchingPlacements).includes(opt);
+                            const usedClass = isUsed ? 'card-used' : '';
+                            const selectClass = selectedMatchingOption === opt ? 'selected-card' : '';
+                            formatHTML += `
+                                <div class="option-card ${usedClass} ${selectClass}" id="optcard-${idx}" draggable="true" ondragstart="handleDragStart(event, '${opt}')" onclick="handleOptionClick('${opt}')">${opt}</div>
+                            `;
+                        });
+                        formatHTML += `</div>`;
+                    }
+                    
+                    formatHTML += `</div>`;
+                    if (i === activeLevel) {
+                        formatHTML += `<button class="btn-check" id="check-btn-${i}" onclick="checkMatching()">Zuweisung prüfen</button>`;
+                    }
+                } else if (step.type === 'cloze') {
+                    formatHTML = `<div class="step-body">${step.clozeText}</div>`;
+                    if (i === activeLevel) {
+                        formatHTML += `<button class="btn-check" id="check-btn-${i}" onclick="checkCloze()">Merksatz prüfen</button>`;
+                    } else {
+                        // For solved, we make sure they are correct and disabled
+                        setTimeout(() => {
+                            const r = document.getElementById('cloze-radikand');
+                            const e = document.getElementById('cloze-extrem');
+                            const w = document.getElementById('cloze-wurzel');
+                            if (r) { r.value = 'Radikand'; r.classList.add('correct'); r.disabled = true; }
+                            if (e) { e.value = 'minimalen'; e.classList.add('correct'); e.disabled = true; }
+                            if (w) { w.value = 'Wurzel'; w.classList.add('correct'); w.disabled = true; }
+                        }, 50);
+                    }
+                } else if (step.type === 'final') {
+                    const isSolved = i < activeLevel;
+                    formatHTML += `
+                        <div class="radio-group">
+                            <label class="radio-label" id="radio-yes" onclick="selectFinalRadio('yes')">
+                                <input type="radio" name="tuev-freigabe" id="rad-yes" value="yes" ${isSolved ? 'disabled checked' : ''}>
+                                <span>Ja, der Abstand ist groß genug (4,83m > 3m).</span>
+                            </label>
+                            <label class="radio-label" id="radio-no" onclick="selectFinalRadio('no')">
+                                <input type="radio" name="tuev-freigabe" id="rad-no" value="no" ${isSolved ? 'disabled' : ''}>
+                                <span>Nein, die Fahrt ist zu gefährlich.</span>
+                            </label>
+                        </div>
+                    `;
+                    if (!isSolved) {
+                        formatHTML += `<button class="btn-check" id="check-btn-${i}" onclick="checkFinal()">Prüfen & Freigabe erteilen</button>`;
+                    }
+                }
+
+                // Header & Title
+                stepDiv.innerHTML = `
+                    <div class="step-header">
+                        <span>${step.header}</span>
+                        ${i < activeLevel ? '<span style="color: var(--success); font-weight: bold;">✓ GELÖST</span>' : ''}
+                    </div>
+                    <div class="step-body">${i === activeLevel || step.type === 'cloze' || step.type === 'final' ? step.body : ''}</div>
+                    ${formatHTML}
+                `;
+
+                // Add success text if solved
+                if (i < activeLevel) {
+                    stepDiv.innerHTML += `
+                        <div class="success-banner">
+                            ${step.successText}
+                        </div>
+                    `;
+                } else {
+                    // Add hint if active
+                    stepDiv.innerHTML += `
+                        <div class="hint-container" id="hint-ctr-${i}">
+                            <button class="btn-hint-toggle" id="hint-btn-${i}" onclick="toggleHint(${i})">💡 Tipp anzeigen</button>
+                            <div class="step-hint-box" id="hint-box-${i}" style="display: none;">${step.hint}</div>
+                        </div>
+                        <div id="next-btn-container-${i}"></div>
+                    `;
+                }
+
+                container.appendChild(stepDiv);
+            }
+
+            // Sync Header progress line/dots
+            for (let d = 0; d < 4; d++) {
+                const dot = document.getElementById(`p-dot-${d}`);
+                const line = document.getElementById(`p-line-${d}`);
+                if (d < activeLevel) {
+                    dot.className = 'p-step-dot completed';
+                    if (line) line.className = 'p-step-line completed';
+                } else if (d === activeLevel) {
+                    dot.className = 'p-step-dot active';
+                    if (line) line.className = 'p-step-line';
+                } else {
+                    dot.className = 'p-step-dot';
+                    if (line) line.className = 'p-step-line';
+                }
+            }
+
+            // Render Math on specific elements to avoid parsing scripts/canvas
+            const statementCard = document.querySelector('.math-statement-card');
+            const stepsContainer = document.getElementById('steps-container');
+            const liveCard = document.querySelector('.live-comparison-card');
+            
+            const renderOptions = {
+                delimiters: [
+                    { left: '$$', right: '$$', display: true },
+                    { left: '$', right: '$', display: false }
+                ],
+                throwOnError: false
+            };
+
+            if (typeof renderMathInElement !== 'undefined') {
+                if (statementCard) renderMathInElement(statementCard, renderOptions);
+                if (stepsContainer) renderMathInElement(stepsContainer, renderOptions);
+                if (liveCard) renderMathInElement(liveCard, renderOptions);
+            }
+        }
+
+        // Toggle Hint
+        function toggleHint(idx) {
+            const box = document.getElementById(`hint-box-${idx}`);
+            const btn = document.getElementById(`hint-btn-${idx}`);
+            if (box.style.display === 'none') {
+                box.style.display = 'block';
+                btn.innerHTML = '💡 Tipp ausblenden';
+            } else {
+                box.style.display = 'none';
+                btn.innerHTML = '💡 Tipp anzeigen';
+            }
+        }
+
+        // LEVEL 0: MC Select & Validate
+        let selectedMCId = null;
+        function selectMC(optId, stepIdx) {
+            if (activeLevel > stepIdx) return; // solved
+            
+            const step = LEVELS[stepIdx];
+            step.options.forEach(opt => {
+                const el = document.getElementById(opt.id);
+                el.classList.remove('selected');
+            });
+
+            document.getElementById(optId).classList.add('selected');
+            selectedMCId = optId;
+        }
+
+        function checkMC(stepIdx) {
+            if (!selectedMCId) {
+                alert("Bitte wähle eine Option aus.");
+                return;
+            }
+
+            const step = LEVELS[stepIdx];
+            const chosen = step.options.find(o => o.id === selectedMCId);
+            
+            if (chosen.isCorrect) {
+                // Correct!
+                document.getElementById(selectedMCId).classList.add('correct');
+                document.getElementById(`check-btn-${stepIdx}`).style.display = 'none';
+                document.getElementById(`hint-ctr-${stepIdx}`).style.display = 'none';
+                
+                // Show next step button
+                const nextContainer = document.getElementById(`next-btn-container-${stepIdx}`);
+                const nextBtn = document.createElement('button');
+                nextBtn.className = 'btn-next-level';
+                nextBtn.innerHTML = 'Weiter zu Level 1 ➜';
+                nextBtn.onclick = () => {
+                    activeLevel = 1;
+                    renderWorksheet();
+                    // Scroll to bottom
+                    document.querySelector('.sidebar').scrollTo({ top: 1000, behavior: 'smooth' });
+                };
+                nextContainer.appendChild(nextBtn);
+            } else {
+                // Wrong
+                const el = document.getElementById(selectedMCId);
+                el.classList.add('wrong');
+                setTimeout(() => el.classList.remove('wrong'), 1000);
+            }
+        }
+
+        // LEVEL 1: Matching (Drag & Drop or Click to assign)
+        let draggedText = null;
+
+        function handleDragStart(ev, text) {
+            draggedText = text;
+            ev.dataTransfer.setData("text", text);
+        }
+
+        function allowDrop(ev) {
+            ev.preventDefault();
+        }
+
+        function handleDrop(ev, axis) {
+            ev.preventDefault();
+            const text = ev.dataTransfer.getData("text") || draggedText;
+            if (!text) return;
+            assignOptionToSlot(text, axis);
+        }
+
+        function handleOptionClick(text) {
+            // Toggle highlight
+            if (selectedMatchingOption === text) {
+                selectedMatchingOption = null;
+            } else {
+                selectedMatchingOption = text;
+            }
+            renderWorksheet();
+        }
+
+        function handleSlotClick(axis) {
+            if (selectedMatchingOption) {
+                assignOptionToSlot(selectedMatchingOption, axis);
+                selectedMatchingOption = null;
+            } else if (matchingPlacements[axis]) {
+                // Click to clear slot
+                removePlacedCard(null, axis);
+            }
+        }
+
+        // Assign helper
+        function assignOptionToSlot(text, axis) {
+            // If already used in another slot, clear that slot first
+            for (let a in matchingPlacements) {
+                if (matchingPlacements[a] === text) {
+                    matchingPlacements[a] = null;
+                }
+            }
+            
+            matchingPlacements[axis] = text;
+            renderWorksheet();
+        }
+
+        function removePlacedCard(ev, axis) {
+            if (ev) ev.stopPropagation();
+            matchingPlacements[axis] = null;
+            renderWorksheet();
+        }
+
+        function checkMatching() {
+            const step = LEVELS[1];
+            let allCorrect = true;
+
+            step.slots.forEach(slot => {
+                const placed = matchingPlacements[slot.axis];
+                const slotEl = document.getElementById(`slot-${slot.axis}`);
+                slotEl.classList.remove('correct-slot', 'wrong-slot');
+
+                if (placed === slot.expected) {
+                    slotEl.classList.add('correct-slot');
+                } else {
+                    slotEl.classList.add('wrong-slot');
+                    allCorrect = false;
+                }
+            });
+
+            if (allCorrect) {
+                document.getElementById('check-btn-1').style.display = 'none';
+                document.getElementById('hint-ctr-1').style.display = 'none';
+
+                const nextContainer = document.getElementById('next-btn-container-1');
+                const nextBtn = document.createElement('button');
+                nextBtn.className = 'btn-next-level';
+                nextBtn.innerHTML = 'Weiter zu Level 2 ➜';
+                nextBtn.onclick = () => {
+                    activeLevel = 2;
+                    renderWorksheet();
+                };
+                nextContainer.appendChild(nextBtn);
+            } else {
+                alert("Einige Zuweisungen sind fehlerhaft. Überprüfe die roten Felder.");
+            }
+        }
+
+        // LEVEL 2: Cloze selects validation
+        function checkCloze() {
+            const r = document.getElementById('cloze-radikand');
+            const e = document.getElementById('cloze-extrem');
+            const w = document.getElementById('cloze-wurzel');
+
+            let allOk = true;
+
+            const checkEl = (el, expected) => {
+                el.classList.remove('correct', 'wrong');
+                if (el.value === expected) {
+                    el.classList.add('correct');
+                } else {
+                    el.classList.add('wrong');
+                    allOk = false;
+                }
+            };
+
+            checkEl(r, 'Radikand');
+            checkEl(e, 'minimalen');
+            checkEl(w, 'Wurzel');
+
+            if (allOk) {
+                r.disabled = true;
+                e.disabled = true;
+                w.disabled = true;
+                
+                document.getElementById('check-btn-2').style.display = 'none';
+                document.getElementById('hint-ctr-2').style.display = 'none';
+
+                const nextContainer = document.getElementById('next-btn-container-2');
+                const nextBtn = document.createElement('button');
+                nextBtn.className = 'btn-next-level';
+                nextBtn.innerHTML = 'Weiter zu Level 3 ➜';
+                nextBtn.onclick = () => {
+                    activeLevel = 3;
+                    renderWorksheet();
+                };
+                nextContainer.appendChild(nextBtn);
+            }
+        }
+
+        // LEVEL 3: Final verification
+        let selectedFinalRadioValue = null;
+        function selectFinalRadio(val) {
+            if (activeLevel > 3) return; // solved
+            selectedFinalRadioValue = val;
+            
+            document.getElementById('radio-yes').classList.remove('selected');
+            document.getElementById('radio-no').classList.remove('selected');
+            
+            document.getElementById(`radio-${val}`).classList.add('selected');
+            document.getElementById(`rad-${val}`).checked = true;
+        }
+
+        function checkFinal() {
+            const inputT = document.getElementById('input-l3-t');
+            const inputD = document.getElementById('input-l3-d');
+            
+            const tValParsed = parseFloat(inputT.value.replace(',', '.'));
+            const dValParsed = parseFloat(inputD.value.replace(',', '.'));
+
+            let tCorrect = Math.abs(tValParsed - 3.67) <= 0.05;
+            let dCorrect = Math.abs(dValParsed - 4.83) <= 0.05;
+            let radioCorrect = selectedFinalRadioValue === 'yes';
+
+            inputT.classList.remove('correct', 'wrong');
+            inputD.classList.remove('correct', 'wrong');
+            
+            document.getElementById('radio-yes').classList.remove('correct', 'wrong');
+            document.getElementById('radio-no').classList.remove('correct', 'wrong');
+
+            if (tCorrect) inputT.classList.add('correct');
+            else inputT.classList.add('wrong');
+
+            if (dCorrect) inputD.classList.add('correct');
+            else inputD.classList.add('wrong');
+
+            if (selectedFinalRadioValue) {
+                if (radioCorrect) document.getElementById('radio-yes').classList.add('correct');
+                else document.getElementById(`radio-${selectedFinalRadioValue}`).classList.add('wrong');
+            }
+
+            if (tCorrect && dCorrect && radioCorrect) {
+                // Solve step 3!
+                activeLevel = 4; // all done
+                renderWorksheet();
+            } else {
+                alert("Einige Antworten sind noch falsch. Überprüfe die rot markierten Felder.");
+            }
+        }
+
+        // Initialize Slider Handlers
+        document.getElementById('time-slider').addEventListener('input', (e) => {
+            tVal = parseFloat(e.target.value);
+            document.getElementById('time-val').innerText = `${tVal.toFixed(2)}s`;
+            if (isPlaying) {
+                togglePlay(); // pause on slide drag
+            }
+            update3DState();
+        });
+
+        document.getElementById('play-btn').addEventListener('click', togglePlay);
+
+        // App Init on load
+        window.addEventListener('DOMContentLoaded', () => {
+            init3D();
+            update3DState();
+            renderWorksheet();
+        });
+    </script>
+</body>
+</html>
